@@ -1,14 +1,16 @@
-var flash = require('connect-flash')
-  , express = require('express')
-  , passport = require('passport')
-  , util = require('util')
-  , LocalStrategy = require('passport-local').Strategy;
-  
+'use strict';
 
-var users = [
-    { id: 1, username: 'bob', password: 'secret', email: 'bob@example.com' }
-  , { id: 2, username: 'joe', password: 'birthday', email: 'joe@example.com' }
-];
+var flash = require('connect-flash');
+var express = require('express');
+var session = require('express-session');
+var morgan = require('morgan');
+var bodyParser = require('body-parser');
+var cookieParser = require('cookie-parser');
+var methodOverride = require('method-override'); 
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+  
+var users = require('./users');
 
 function findById(id, fn) {
   var idx = id - 1;
@@ -28,7 +30,6 @@ function findByUsername(username, fn) {
   }
   return fn(null, null);
 }
-
 
 // Passport session setup.
 //   To support persistent login sessions, Passport needs to be able to
@@ -65,7 +66,7 @@ passport.use(new LocalStrategy(
         if (!user) { return done(null, false, { message: 'Unknown user ' + username }); }
         if (user.password != password) { return done(null, false, { message: 'Invalid password' }); }
         return done(null, user);
-      })
+      });
     });
   }
 ));
@@ -76,22 +77,23 @@ passport.use(new LocalStrategy(
 var app = express();
 
 // configure Express
-app.configure(function() {
-  app.set('views', __dirname + '/views');
-  app.set('view engine', 'ejs');
-  app.use(express.logger());
-  app.use(express.cookieParser());
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(express.session({ secret: 'keyboard cat' }));
-  // Initialize Passport!  Also use passport.session() middleware, to support
-  // persistent login sessions (recommended).
-  app.use(flash());
-  app.use(passport.initialize());
-  app.use(passport.session());
-  app.use(app.router);
-  app.use(express.static(__dirname + '/../../public'));
-});
+app.set('views', __dirname + '/views');
+app.set('view engine', 'ejs');
+app.use(morgan('dev'));
+app.use(cookieParser());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(methodOverride());
+app.use(session({ 
+                  secret: 'keyboard cat',
+                  saveUninitialized: true,
+                  resave: true 
+                }));
+// Initialize Passport!  Also use passport.session() middleware, to support
+// persistent login sessions (recommended).
+app.use(flash());
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(express.static(__dirname + '/../../public'));
 
 
 app.get('/', function(req, res){
@@ -144,7 +146,10 @@ app.get('/logout', function(req, res){
 });
 
 app.listen(3000);
-
+console.log('Server is running at http://localhost:3000');
+console.log('login   at http://localhost:3000/login');
+console.log('logout  at http://localhost:3000/logout');
+console.log('account at http://localhost:3000/account');
 
 // Simple route middleware to ensure user is authenticated.
 //   Use this route middleware on any resource that needs to be protected.  If
